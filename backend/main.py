@@ -107,6 +107,58 @@ def _seed_default_admin():
 
 _seed_default_admin()
 
+
+def _seed_mining_records():
+    db = SessionLocal()
+    try:
+        if db.query(MiningRecord).count() > 0:
+            return
+        seed_path = Path(__file__).resolve().parent / "seed_mines.json"
+        if not seed_path.exists():
+            return
+        with seed_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Ensure a valid parent Document exists to satisfy foreign key constraints
+        doc = db.query(Document).first()
+        if not doc:
+            doc = Document(
+                original_name="Indian Coal Mines Dataset_January 2021-1.xlsx",
+                stored_name="seed_mines_dataset.xlsx",
+                file_type="XLSX",
+                file_size=102400,
+                category="Production",
+                processing_status="Processed",
+                extracted_text="Pre-loaded national coal mines directory dataset",
+            )
+            db.add(doc)
+            db.commit()
+            db.refresh(doc)
+
+        for item in data:
+            db.add(
+                MiningRecord(
+                    document_id=doc.id,
+                    mine_name=item["mine_name"],
+                    reporting_year=item.get("reporting_year"),
+                    production=item.get("production"),
+                    production_unit=item.get("production_unit", "MT"),
+                    overburden=item.get("overburden"),
+                    overburden_unit=item.get("overburden_unit"),
+                    category=item.get("category", "Production"),
+                )
+            )
+        db.commit()
+        logger.info("Auto-seeded %d mining records from seed_mines.json (doc_id=%s)", len(data), doc.id)
+    except Exception as e:
+        db.rollback()
+        logger.warning("Could not auto-seed mining records: %s", e)
+    finally:
+        db.close()
+
+
+_seed_mining_records()
+
 # ============================================================
 # APPLICATION
 # ============================================================

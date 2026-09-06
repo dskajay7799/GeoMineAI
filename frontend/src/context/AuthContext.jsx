@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1"
+    ? "https://geomine-ai-backend.onrender.com"
+    : "http://127.0.0.1:8000");
 
 if (!API_BASE_URL) {
   console.error("VITE_API_URL is not configured.");
