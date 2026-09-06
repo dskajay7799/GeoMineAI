@@ -11,8 +11,14 @@ import {
   Loader2,
   Landmark,
 } from "lucide-react";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 import { useAuth } from "../context/AuthContext";
 import MineImageCarousel from "../components/MineImageCarousel";
+
+const PIE_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#a21caf", "#0891b2", "#65a30d", "#c2410c"];
 
 function Reports() {
   const { authFetch, user } = useAuth();
@@ -118,7 +124,10 @@ function Reports() {
     setLoadingReports(true);
 
     authFetch("/api/reports")
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load reports.");
+        return response.json();
+      })
       .then((data) => setReports(data.reports || []))
       .catch((error) => console.error("Failed to load reports:", error))
       .finally(() => setLoadingReports(false));
@@ -140,9 +149,16 @@ function Reports() {
     if (selectedMine) params.append("mine_name", selectedMine);
 
     authFetch(`/api/reports/preview?${params.toString()}`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load preview data.");
+        return response.json();
+      })
       .then((data) => setPreview(data))
-      .catch((error) => console.error("Preview failed:", error))
+      .catch((error) => {
+        console.error("Preview failed:", error);
+        setNotification({ type: "error", message: error.message || "Unable to load preview." });
+        setTimeout(() => setNotification(null), 5000);
+      })
       .finally(() => setPreviewLoading(false));
   };
 
@@ -183,7 +199,17 @@ function Reports() {
   const handleDownload = async (reportId, displayName) => {
     try {
       const response = await authFetch(`/api/reports/${reportId}/download`);
-      if (!response.ok) throw new Error("Download failed");
+
+      if (!response.ok) {
+        let message = "Download failed.";
+        try {
+          const errorData = await response.json();
+          message = errorData.detail || message;
+        } catch {
+          // ignore JSON parse errors on failed download
+        }
+        throw new Error(message);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -198,6 +224,8 @@ function Reports() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Download error:", error);
+      setNotification({ type: "error", message: error.message || "Unable to download report." });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -296,20 +324,41 @@ function Reports() {
           </div>
 
           {preview && (
-            <div className="data-validation">
-              <div className="validation-title">
-                <CheckCircle2 size={17} />
-                <div>
-                  <strong>Data Validation</strong>
-                  <span>{preview.matched_document_count} document(s) match the selected filters.</span>
+            <>
+              <div className="data-validation">
+                <div className="validation-title">
+                  <CheckCircle2 size={17} />
+                  <div>
+                    <strong>Data Validation</strong>
+                    <span>{preview.matched_document_count} document(s) match the selected filters.</span>
+                  </div>
+                </div>
+
+                <div className="validation-result">
+                  <strong>{preview.validation_score !== null ? `${preview.validation_score}%` : "N/A"}</strong>
+                  <span>Avg. Confidence</span>
                 </div>
               </div>
 
-              <div className="validation-result">
-                <strong>{preview.validation_score !== null ? `${preview.validation_score}%` : "N/A"}</strong>
-                <span>Avg. Confidence</span>
-              </div>
-            </div>
+              {preview.documents && preview.documents.length > 0 && (
+                <div className="report-table-container" style={{ marginTop: 12 }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>MATCHED DOCUMENT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.documents.map((name, index) => (
+                        <tr key={`${name}-${index}`}>
+                          <td>{name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
 
           <div className="generator-actions">
@@ -342,12 +391,48 @@ function Reports() {
           {reportTypeCounts.length === 0 ? (
             <p className="chart-empty" style={{ padding: "10px 0" }}>No report types available yet.</p>
           ) : (
-            reportTypeCounts.map((item) => (
-              <div className="template-item" key={item.type}>
-                <span>{item.type}</span>
-                <strong>{item.count}</strong>
-              </div>
-            ))
+            <ResponsiveContainer width="100%" height={Math.max(180, reportTypeCounts.length * 42)}>
+              <BarChart data={reportTypeCounts} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} />
+                <YAxis type="category" dataKey="type" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#2563eb" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+
+          {reports.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <h4 style={{ fontSize: 12, color: "#334155", marginBottom: 10 }}>Reports by Status</h4>
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Ready", value: reports.filter((r) => r.status === "Ready").length },
+                      { name: "Needs Review", value: reports.filter((r) => r.status !== "Ready").length },
+                    ].filter((entry) => entry.value > 0)}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    {[
+                      { name: "Ready", value: reports.filter((r) => r.status === "Ready").length },
+                      { name: "Needs Review", value: reports.filter((r) => r.status !== "Ready").length },
+                    ]
+                      .filter((entry) => entry.value > 0)
+                      .map((entry, index) => (
+                        <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>

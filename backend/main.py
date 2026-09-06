@@ -1830,6 +1830,18 @@ def preview_report(
     matched_records = query.all()
     matched_document_ids = {r.document_id for r in matched_records}
 
+    # Fallback: some processed/needs-review documents carry mine_name /
+    # reporting_year at the document level but never produced a
+    # MiningRecord row (e.g. partial extraction). Without this, those
+    # documents would never show up in a report even though they match
+    # the selected filters, making reports look empty.
+    doc_query = db.query(Document).filter(Document.mine_name.isnot(None))
+    if mine_name and mine_name != "All Mines":
+        doc_query = doc_query.filter(Document.mine_name == mine_name)
+    if period:
+        doc_query = doc_query.filter(Document.reporting_year == period)
+    matched_document_ids |= {d.id for d in doc_query.all()}
+
     validation_score = None
 
     if matched_document_ids:
@@ -1877,6 +1889,17 @@ def generate_report(
 
     matched_records = query.all()
     matched_document_ids = {r.document_id for r in matched_records}
+
+    # Same fallback as /api/reports/preview — pick up documents that have
+    # mine/period info at the document level even if no MiningRecord row
+    # was created for them, so generated reports aren't left empty.
+    doc_query = db.query(Document).filter(Document.mine_name.isnot(None))
+    if request.mine_name and request.mine_name != "All Mines":
+        doc_query = doc_query.filter(Document.mine_name == request.mine_name)
+    if request.period:
+        doc_query = doc_query.filter(Document.reporting_year == request.period)
+    matched_document_ids |= {d.id for d in doc_query.all()}
+
     matched_documents = (
         db.query(Document).filter(Document.id.in_(matched_document_ids)).all()
         if matched_document_ids else []
