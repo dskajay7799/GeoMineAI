@@ -175,65 +175,108 @@ Respond ONLY with a valid JSON array of objects, nothing else. Each object must 
 
 If the text does not describe any specific mine/company-level production or overburden figures, respond with an empty array: []"""
 
-
 def extract_mining_records_from_text(text: str, max_chars: int = 8000) -> list:
     if not _client or not text or not text.strip():
         return []
 
-    snippet = text.strip()[:max_chars]
+    # Process the complete extracted document in chunks instead of
+    # looking only at the first 8,000 characters.
+    chunk_size = max_chars
+    cleaned_text = text.strip()
 
-    try:
-        response = _client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": RECORD_EXTRACTION_SYSTEM},
-                {"role": "user", "content": snippet},
-            ],
-        )
-    except Exception:
-        return []
+    chunks = [
+        cleaned_text[i:i + chunk_size]
+        for i in range(0, len(cleaned_text), chunk_size)
+    ]
 
-    if not response.choices or not response.choices[0].message.content:
-        return []
+    all_records = []
 
-    raw = response.choices[0].message.content.strip()
-
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-
-    try:
-        data = _json.loads(raw)
-    except Exception:
-        return []
-
-    if not isinstance(data, list):
-        return []
-
-    def _to_number(value):
-        if value is None:
-            return None
+    for snippet in chunks:
         try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    records = []
-    for item in data:
-        if not isinstance(item, dict):
+            response = _client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": RECORD_EXTRACTION_SYSTEM
+                    },
+                    {
+                        "role": "user",
+                        "content": snippet
+                    },
+                ],
+            )
+        except Exception:
             continue
 
-        mine_name = item.get("mine_name")
-        if not mine_name or not isinstance(mine_name, str):
+        if (
+            not response.choices
+            or not response.choices[0].message.content
+        ):
             continue
 
-        records.append({
-            "mine_name": mine_name.strip()[:255],
-            "reporting_year": item.get("reporting_year") or None,
-            "production": _to_number(item.get("production")),
-            "overburden": _to_number(item.get("overburden")),
-        })
+        raw = response.choices[0].message.content.strip()
 
-    return records
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+
+            raw = raw.strip()
+
+        try:
+            data = _json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(data, list):
+            continue
+
+        def _to_number(value):
+            if value is None:
+                return None
+
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            mine_name = item.get("mine_name")
+
+            if not mine_name or not isinstance(mine_name, str):
+                continue
+
+            all_records.append(
+                {
+                    "mine_name": mine_name.strip()[:255],
+                    "reporting_year": item.get("reporting_year") or None,
+                    "production": _to_number(
+                        item.get("production")
+                    ),
+                    "overburden": _to_number(
+                        item.get("overburden")
+                    ),
+                }
+            )
+    # Remove duplicate records that can occur at chunk boundaries.
+    unique_records = []
+    seen = set()
+
+    for record in all_records:
+        key = (
+            record["mine_name"],
+            record["reporting_year"],
+            record["production"],
+            record["overburden"],
+        )
+
+        if key not in seen:
+            seen.add(key)
+            unique_records.append(record)
+
+    return unique_records
