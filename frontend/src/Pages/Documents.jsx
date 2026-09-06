@@ -55,53 +55,68 @@ function Documents() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const fetchDocuments = async (search = "") => {
+  const fetchDocuments = async (search = "", { silent = false } = {}) => {
+  if (!silent) {
     setLoadingDocuments(true);
-    try {
-      const params = new URLSearchParams();
-      if (search.trim()) params.append("search", search.trim());
+  }
 
-      const response = await authFetch(`/api/documents?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to load documents");
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (error) {
-      console.error("Document loading error:", error);
-    } finally {
+  try {
+    const params = new URLSearchParams();
+
+    if (search.trim()) {
+      params.append("search", search.trim());
+    }
+
+    const response = await authFetch(`/api/documents?${params.toString()}`);
+
+    if (!response.ok) {
+      let errorMessage = "Failed to load documents.";
+
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Ignore JSON parsing errors
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    setDocuments(data.documents || []);
+  } catch (error) {
+    console.error("Document loading error:", error);
+
+    if (!silent) {
+      showNotification(
+        "Could not load documents",
+        error.message || "Please try again.",
+        "error"
+      );
+    }
+  } finally {
+    if (!silent) {
       setLoadingDocuments(false);
     }
-  };
+  }
+};
 
-  useEffect(() => {
-    fetchDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const hasProcessingDocuments = documents.some(
+  (document) =>
+    document.processing_status === "Processing" ||
+    document.processing_status === "Uploaded"
+);
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchDocuments(searchTerm);
-    }, 400);
+useEffect(() => {
+  if (!hasProcessingDocuments) return;
 
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  const interval = setInterval(() => {
+    fetchDocuments(searchTerm, { silent: true });
+  }, 3000);
 
-  useEffect(() => {
-    const hasProcessingDocuments = documents.some(
-      (document) =>
-        document.processing_status === "Processing" ||
-        document.processing_status === "Uploaded"
-    );
-
-    if (!hasProcessingDocuments) return;
-
-    const interval = setInterval(() => {
-      fetchDocuments(searchTerm);
-    }, 3000);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents]);
+  return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [hasProcessingDocuments, searchTerm]);
 
   const openFilePicker = () => {
     if (!uploading && canEdit) {
@@ -192,6 +207,7 @@ function Documents() {
 
     let successCount = 0;
     let failCount = 0;
+    const failedFiles = [];
 
     for (let i = 0; i < validFiles.length; i++) {
       setUploadProgress(`Uploading ${i + 1} of ${validFiles.length}...`);
@@ -199,9 +215,12 @@ function Documents() {
         await uploadSingleFile(validFiles[i]);
         successCount++;
       } catch (error) {
-        console.error("Upload error:", error);
-        failCount++;
-      }
+       console.error("Upload error:", error);
+       failCount++;
+      failedFiles.push(
+      `${validFiles[i].name}: ${error.message || "Upload failed"}`
+  );
+}
     }
 
     setUploading(false);
@@ -212,11 +231,16 @@ function Documents() {
     if (failCount) parts.push(`${failCount} failed`);
     if (invalidCount) parts.push(`${invalidCount} skipped (unsupported type)`);
 
-    showNotification(
-      "Bulk upload complete",
-      parts.join(", ") || "No files processed.",
-      failCount ? "error" : "success"
-    );
+    const messageParts = [
+    parts.join(", "),
+   ...failedFiles,
+   ].filter(Boolean);
+   
+  showNotification(
+  failCount ? "Upload completed with errors" : "Upload complete",
+  messageParts.join(" • ") || "No files processed.",
+  failCount ? "error" : "success"
+);
 
     await fetchDocuments(searchTerm);
   };
