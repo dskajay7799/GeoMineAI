@@ -272,21 +272,52 @@ def _extract_unit_from_column_name(column_name) -> Optional[str]:
 def _read_document_dataframe(document: Document) -> Optional[pd.DataFrame]:
     file_path = UPLOAD_DIR / document.stored_name
 
+    logger.info("=== DOCUMENT READ DEBUG ===")
+    logger.info("document.id = %s", document.id)
+    logger.info("document.original_name = %s", document.original_name)
+    logger.info("document.stored_name = %s", document.stored_name)
+    logger.info("document.file_type = %s", document.file_type)
+    logger.info("DATA_DIR = %s", DATA_DIR)
+    logger.info("UPLOAD_DIR = %s", UPLOAD_DIR)
+    logger.info("file_path = %s", file_path)
+    logger.info("file_exists = %s", file_path.exists())
+
     if not file_path.exists():
+        logger.error("FILE NOT FOUND: %s", file_path)
         return None
 
     extension = Path(document.stored_name).suffix.lower()
 
+    logger.info("extension = %s", extension)
+
     try:
         if extension in [".xlsx", ".xls"]:
-            return pd.read_excel(file_path, sheet_name=0)
+            logger.info("Attempting pd.read_excel()")
+
+            df = pd.read_excel(file_path, sheet_name=0)
+
+            logger.info("Excel read successfully")
+            logger.info("rows = %s", len(df))
+            logger.info("columns = %s", list(df.columns))
+
+            return df
+
         if extension == ".csv":
-            return pd.read_csv(file_path)
+            logger.info("Attempting pd.read_csv()")
+
+            df = pd.read_csv(file_path)
+
+            logger.info("CSV read successfully")
+            logger.info("rows = %s", len(df))
+            logger.info("columns = %s", list(df.columns))
+
+            return df
+
     except Exception:
-        logger.exception("Failed to read spreadsheet for auto-analysis")
-        return None
+        logger.exception("FAILED TO READ SPREADSHEET")
 
     return None
+
 
 
 def _extract_mining_records_from_spreadsheet(dataframe: pd.DataFrame):
