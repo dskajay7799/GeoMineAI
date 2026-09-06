@@ -1144,8 +1144,6 @@ def delete_document(
         except Exception:
             logger.warning("Could not delete physical file from disk (file may be in use): %s", file_path)
 
-    document_name = document.original_name
-
 # changes for delete
     document_name = document.original_name
 
