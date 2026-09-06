@@ -131,13 +131,9 @@ function Documents() {
     }
   };
 
-  // IMPORTANT:
-  // Load documents when the Documents page is first opened.
+  // Load documents on initial mount
   useEffect(() => {
     fetchDocuments();
-
-    // We intentionally do not include fetchDocuments in the dependency array
-    // because it is recreated on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,7 +143,7 @@ function Documents() {
       document.processing_status === "Uploaded"
   );
 
-  // Poll only while documents are processing.
+  // Poll only while documents are processing
   useEffect(() => {
     if (!hasProcessingDocuments) return;
 
@@ -156,7 +152,6 @@ function Documents() {
     }, 3000);
 
     return () => clearInterval(interval);
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasProcessingDocuments, searchTerm]);
 
@@ -188,23 +183,17 @@ function Documents() {
   const getFileIcon = (type) => {
     const normalizedType = type?.toUpperCase();
 
-    if (
-      ["XLS", "XLSX", "CSV", "EXCEL"].includes(normalizedType)
-    ) {
+    if (["XLS", "XLSX", "CSV", "EXCEL"].includes(normalizedType)) {
       return <FileSpreadsheet size={20} />;
     }
 
     if (
-      ["PNG", "JPG", "JPEG", "TIF", "TIFF", "IMAGE"].includes(
-        normalizedType
-      )
+      ["PNG", "JPG", "JPEG", "TIF", "TIFF", "IMAGE"].includes(normalizedType)
     ) {
       return <Image size={20} />;
     }
 
-    if (
-      ["PDF", "DOC", "DOCX"].includes(normalizedType)
-    ) {
+    if (["PDF", "DOC", "DOCX"].includes(normalizedType)) {
       return <FileText size={20} />;
     }
 
@@ -246,9 +235,7 @@ function Documents() {
     }
 
     if (!response.ok) {
-      throw new Error(
-        data.detail || `${file.name} could not be uploaded.`
-      );
+      throw new Error(data.detail || `${file.name} could not be uploaded.`);
     }
 
     return data;
@@ -280,22 +267,16 @@ function Documents() {
     const failedFiles = [];
 
     for (let i = 0; i < validFiles.length; i++) {
-      setUploadProgress(
-        `Uploading ${i + 1} of ${validFiles.length}...`
-      );
+      setUploadProgress(`Uploading ${i + 1} of ${validFiles.length}...`);
 
       try {
         await uploadSingleFile(validFiles[i]);
         successCount++;
       } catch (error) {
         console.error("Upload error:", error);
-
         failCount++;
-
         failedFiles.push(
-          `${validFiles[i].name}: ${
-            error.message || "Upload failed"
-          }`
+          `${validFiles[i].name}: ${error.message || "Upload failed"}`
         );
       }
     }
@@ -314,28 +295,18 @@ function Documents() {
     }
 
     if (invalidCount) {
-      parts.push(
-        `${invalidCount} skipped (unsupported type)`
-      );
+      parts.push(`${invalidCount} skipped (unsupported type)`);
     }
 
     const displayedErrors = failedFiles.slice(0, 3);
-
-    const messageParts = [
-      parts.join(", "),
-      ...displayedErrors,
-    ].filter(Boolean);
+    const messageParts = [parts.join(", "), ...displayedErrors].filter(Boolean);
 
     if (failedFiles.length > 3) {
-      messageParts.push(
-        `and ${failedFiles.length - 3} more error(s)`
-      );
+      messageParts.push(`and ${failedFiles.length - 3} more error(s)`);
     }
 
     showNotification(
-      failCount
-        ? "Upload completed with errors"
-        : "Upload complete",
+      failCount ? "Upload completed with errors" : "Upload complete",
       messageParts.join(" • ") || "No files processed.",
       failCount ? "error" : "success"
     );
@@ -404,26 +375,19 @@ function Documents() {
 
   const toggleSelected = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const allVisibleSelected =
     filteredDocuments.length > 0 &&
-    filteredDocuments.every((document) =>
-      selectedIds.includes(document.id)
-    );
+    filteredDocuments.every((document) => selectedIds.includes(document.id));
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
       setSelectedIds((prev) =>
         prev.filter(
-          (id) =>
-            !filteredDocuments.some(
-              (document) => document.id === id
-            )
+          (id) => !filteredDocuments.some((document) => document.id === id)
         )
       );
     } else {
@@ -436,7 +400,7 @@ function Documents() {
     }
   };
 
-   const deleteSelected = async () => {
+  const deleteSelected = async () => {
     if (selectedIds.length === 0) return;
 
     let deletedCount = 0;
@@ -444,7 +408,9 @@ function Documents() {
 
     for (const id of selectedIds) {
       try {
-        const response = await authFetch(`/api/documents/${id}`, { method: "DELETE" });
+        const response = await authFetch(`/api/documents/${id}`, {
+          method: "DELETE",
+        });
         if (response.ok) {
           deletedCount++;
         } else {
@@ -460,7 +426,11 @@ function Documents() {
       showNotification("Deleted", `${deletedCount} document(s) removed.`);
     }
     if (failedCount > 0) {
-      showNotification("Error", `Failed to delete ${failedCount} document(s).`);
+      showNotification(
+        "Error",
+        `Failed to delete ${failedCount} document(s).`,
+        "error"
+      );
     }
 
     setSelectedIds([]);
@@ -476,30 +446,15 @@ function Documents() {
     setPipeline([]);
 
     try {
-      const [
-        factsResponse,
-        pagesResponse,
-        pipelineResponse,
-      ] = await Promise.all([
-        authFetch(
-          `/api/documents/${document.id}/facts`
-        ),
-        authFetch(
-          `/api/documents/${document.id}/pages`
-        ),
-        authFetch(
-          `/api/documents/${document.id}/pipeline`
-        ),
-      ]);
+      const [factsResponse, pagesResponse, pipelineResponse] =
+        await Promise.all([
+          authFetch(`/api/documents/${document.id}/facts`),
+          authFetch(`/api/documents/${document.id}/pages`),
+          authFetch(`/api/documents/${document.id}/pipeline`),
+        ]);
 
-      if (
-        !factsResponse.ok ||
-        !pagesResponse.ok ||
-        !pipelineResponse.ok
-      ) {
-        throw new Error(
-          "Failed to load document details."
-        );
+      if (!factsResponse.ok || !pagesResponse.ok || !pipelineResponse.ok) {
+        throw new Error("Failed to load document details.");
       }
 
       const factsData = await factsResponse.json();
@@ -507,20 +462,12 @@ function Documents() {
       const pipelineData = await pipelineResponse.json();
 
       setFacts(factsData.facts || []);
-
       setPagesText(
-        (pagesData.pages || [])
-          .map((p) => p.text)
-          .join("\n\n---\n\n")
+        (pagesData.pages || []).map((p) => p.text).join("\n\n---\n\n")
       );
-
       setPipeline(pipelineData.stages || []);
     } catch (error) {
-      console.error(
-        "Failed to load document details:",
-        error
-      );
-
+      console.error("Failed to load document details:", error);
       showNotification(
         "Could not load document details",
         error.message || "Please try again.",
@@ -560,21 +507,16 @@ function Documents() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.detail || "Could not update fact"
-        );
+        throw new Error(data.detail || "Could not update fact");
       }
 
       setFacts((prev) =>
-        prev.map((f) =>
-          f.id === factId ? data.fact : f
-        )
+        prev.map((f) => (f.id === factId ? data.fact : f))
       );
 
       setEditingFactId(null);
     } catch (error) {
       console.error("Update fact error:", error);
-
       showNotification(
         "Could not update fact",
         error.message || "Please try again.",
@@ -618,15 +560,11 @@ function Documents() {
 
       <div className="page-header">
         <div>
-          <p className="page-label">
-            DOCUMENT INTELLIGENCE
-          </p>
-
+          <p className="page-label">DOCUMENT INTELLIGENCE</p>
           <h1>Document Management</h1>
-
           <p className="page-description">
-            Upload, organize and process geological,
-            mining and administrative documents.
+            Upload, organize and process geological, mining and administrative
+            documents.
           </p>
         </div>
 
@@ -641,7 +579,6 @@ function Documents() {
             ) : (
               <Upload size={17} />
             )}
-
             {uploading
               ? uploadProgress || "Uploading..."
               : "Upload Documents"}
@@ -659,37 +596,25 @@ function Documents() {
       </div>
 
       {canEdit ? (
-        <div
-          className="document-upload-zone"
-          onClick={openFilePicker}
-        >
+        <div className="document-upload-zone" onClick={openFilePicker}>
           <div className="upload-zone-icon">
             <Upload size={24} />
           </div>
 
           <div>
-            <strong>
-              Drop one or more documents here, or click
-              to upload
-            </strong>
-
+            <strong>Drop one or more documents here, or click to upload</strong>
             <p>
-              PDF, DOCX, XLSX, CSV and image files &mdash;
-              multiple files supported
+              PDF, DOCX, XLSX, CSV and image files &mdash; multiple files
+              supported
             </p>
           </div>
         </div>
       ) : (
         <div className="upload-info">
           <File size={18} />
-
           <div>
             <strong>View-only access</strong>
-
-            <p>
-              Your account role does not have permission
-              to upload documents.
-            </p>
+            <p>Your account role does not have permission to upload documents.</p>
           </div>
         </div>
       )}
@@ -697,53 +622,45 @@ function Documents() {
       <div className="document-stats">
         <div className="document-stat">
           <span>Total Documents</span>
-          <strong>
-            {totalDocuments.toLocaleString()}
-          </strong>
+          <strong>{totalDocuments.toLocaleString()}</strong>
         </div>
 
         <div className="document-stat">
           <span>Processed</span>
-          <strong>
-            {processedDocuments.toLocaleString()}
-          </strong>
+          <strong>{processedDocuments.toLocaleString()}</strong>
         </div>
 
         <div className="document-stat">
           <span>Processing</span>
-          <strong>
-            {processingDocuments.toLocaleString()}
-          </strong>
+          <strong>{processingDocuments.toLocaleString()}</strong>
         </div>
 
         <div className="document-stat">
           <span>Needs Review</span>
-          <strong>
-            {reviewDocuments.toLocaleString()}
-          </strong>
+          <strong>{reviewDocuments.toLocaleString()}</strong>
         </div>
       </div>
 
       <div className="document-toolbar">
         <div className="document-search">
           <Search size={18} />
-
           <input
             type="text"
-            placeholder="Search by filename or document content..."
+            placeholder="Search by filename or document content... (Press Enter)"
             value={searchTerm}
-            onChange={(event) =>
-              setSearchTerm(event.target.value)
-            }
+            onChange={(event) => setSearchTerm(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                fetchDocuments(searchTerm);
+              }
+            }}
           />
         </div>
 
         <div className="document-filters">
           <select
             value={categoryFilter}
-            onChange={(event) =>
-              setCategoryFilter(event.target.value)
-            }
+            onChange={(event) => setCategoryFilter(event.target.value)}
           >
             <option>All Categories</option>
             <option>Geological</option>
@@ -756,9 +673,7 @@ function Documents() {
 
           <select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
+            onChange={(event) => setStatusFilter(event.target.value)}
           >
             <option>All Status</option>
             <option>Uploaded</option>
@@ -772,13 +687,8 @@ function Documents() {
       {canEdit && selectedIds.length > 0 && (
         <div className="bulk-action-bar">
           <span>{selectedIds.length} selected</span>
-
-          <button
-            className="bulk-delete-button"
-            onClick={deleteSelected}
-          >
-            <Trash2 size={14} />
-            Delete Selected
+          <button className="bulk-delete-button" onClick={deleteSelected}>
+            <Trash2 size={14} /> Delete Selected
           </button>
         </div>
       )}
@@ -787,11 +697,7 @@ function Documents() {
         <div className="documents-card-header">
           <div>
             <h3>Documents</h3>
-
-            <p>
-              Documents stored in the GeoMine AI
-              repository
-            </p>
+            <p>Documents stored in the GeoMine AI repository</p>
           </div>
 
           <button
@@ -816,7 +722,6 @@ function Documents() {
                     />
                   </th>
                 )}
-
                 <th>DOCUMENT</th>
                 <th>CATEGORY</th>
                 <th>SIZE</th>
@@ -828,32 +733,19 @@ function Documents() {
 
             <tbody>
               {loadingDocuments ? (
-                <SkeletonTableRows
-                  rows={6}
-                  columns={canEdit ? 7 : 6}
-                />
+                <SkeletonTableRows rows={6} columns={canEdit ? 7 : 6} />
               ) : filteredDocuments.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={canEdit ? 7 : 6}
-                    className="empty-documents"
-                  >
+                  <td colSpan={canEdit ? 7 : 6} className="empty-documents">
                     <FileText size={28} />
-
-                    <strong>
-                      No documents found
-                    </strong>
-
-                    <span>
-                      Upload a document to get started.
-                    </span>
+                    <strong>No documents found</strong>
+                    <span>Upload a document to get started.</span>
                   </td>
                 </tr>
               ) : (
                 filteredDocuments.map((document) => {
                   const processingStatus =
-                    document.processing_status ||
-                    "Uploaded";
+                    document.processing_status || "Uploaded";
 
                   return (
                     <tr key={document.id}>
@@ -861,14 +753,8 @@ function Documents() {
                         <td>
                           <input
                             type="checkbox"
-                            checked={selectedIds.includes(
-                              document.id
-                            )}
-                            onChange={() =>
-                              toggleSelected(
-                                document.id
-                              )
-                            }
+                            checked={selectedIds.includes(document.id)}
+                            onChange={() => toggleSelected(document.id)}
                           />
                         </td>
                       )}
@@ -876,37 +762,22 @@ function Documents() {
                       <td>
                         <div className="document-name">
                           <div className="file-icon">
-                            {getFileIcon(
-                              document.file_type
-                            )}
+                            {getFileIcon(document.file_type)}
                           </div>
-
                           <div>
-                            <strong>
-                              {document.original_name}
-                            </strong>
-
-                            <span>
-                              {getDisplayFileType(
-                                document.file_type
-                              )}
-                            </span>
+                            <strong>{document.original_name}</strong>
+                            <span>{getDisplayFileType(document.file_type)}</span>
                           </div>
                         </div>
                       </td>
 
                       <td>
                         <span className="category-badge">
-                          {document.category ||
-                            "Uncategorized"}
+                          {document.category || "Uncategorized"}
                         </span>
                       </td>
 
-                      <td>
-                        {formatFileSize(
-                          document.file_size
-                        )}
-                      </td>
+                      <td>{formatFileSize(document.file_size)}</td>
 
                       <td>
                         <span
@@ -914,30 +785,21 @@ function Documents() {
                             .toLowerCase()
                             .replace(/\s+/g, "-")}`}
                         >
-                          {getStatusIcon(
-                            processingStatus
-                          )}
-
+                          {getStatusIcon(processingStatus)}
                           {processingStatus}
                         </span>
                       </td>
 
-                      <td>
-                        {formatDate(
-                          document.created_at
-                        )}
-                      </td>
+                      <td>{formatDate(document.created_at)}</td>
 
                       <td>
                         <button
                           className="more-button"
                           aria-label="View document details"
-                          onClick={() =>
-                            openFactsModal(document)
-                          }
+                          onClick={() => openFactsModal(document)}
                           disabled={
-                            processingStatus !==
-                            "Processed"
+                            processingStatus === "Processing" ||
+                            processingStatus === "Uploaded"
                           }
                         >
                           <Eye size={18} />
@@ -953,28 +815,16 @@ function Documents() {
       </div>
 
       {selectedDocument && (
-        <div
-          className="modal-overlay"
-          onClick={closeFactsModal}
-        >
+        <div className="modal-overlay" onClick={closeFactsModal}>
           <div
             className="modal-card"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="modal-header">
               <div>
-                <h3>
-                  {selectedDocument.original_name}
-                </h3>
-
-                <p>
-                  Extracted data, processing history and
-                  document preview
-                </p>
+                <h3>{selectedDocument.original_name}</h3>
+                <p>Extracted data, processing history and document preview</p>
               </div>
-
               <button
                 className="notification-close"
                 onClick={closeFactsModal}
@@ -987,37 +837,25 @@ function Documents() {
             <div className="modal-tabs">
               <button
                 className={
-                  modalTab === "facts"
-                    ? "modal-tab active"
-                    : "modal-tab"
+                  modalTab === "facts" ? "modal-tab active" : "modal-tab"
                 }
                 onClick={() => setModalTab("facts")}
               >
                 Extracted Facts
               </button>
-
               <button
                 className={
-                  modalTab === "preview"
-                    ? "modal-tab active"
-                    : "modal-tab"
+                  modalTab === "preview" ? "modal-tab active" : "modal-tab"
                 }
-                onClick={() =>
-                  setModalTab("preview")
-                }
+                onClick={() => setModalTab("preview")}
               >
                 Text Preview
               </button>
-
               <button
                 className={
-                  modalTab === "pipeline"
-                    ? "modal-tab active"
-                    : "modal-tab"
+                  modalTab === "pipeline" ? "modal-tab active" : "modal-tab"
                 }
-                onClick={() =>
-                  setModalTab("pipeline")
-                }
+                onClick={() => setModalTab("pipeline")}
               >
                 Processing Pipeline
               </button>
@@ -1026,63 +864,42 @@ function Documents() {
             <div className="modal-body">
               {loadingFacts ? (
                 <div className="documents-loading">
-                  <Loader2
-                    size={22}
-                    className="spin"
-                  />
-
-                  <span>
-                    Loading document details...
-                  </span>
+                  <Loader2 size={22} className="spin" />
+                  <span>Loading document details...</span>
                 </div>
               ) : modalTab === "facts" ? (
                 facts.length === 0 ? (
                   <p className="chart-empty">
-                    No structured facts were extracted
-                    from this document.
+                    No structured facts were extracted from this document.
                   </p>
                 ) : (
                   facts.map((fact) => {
                     const validationStatus =
-                      fact.validation_status ||
-                      "Pending";
+                      fact.validation_status || "Pending";
 
                     return (
-                      <div
-                        className="fact-row"
-                        key={fact.id}
-                      >
+                      <div className="fact-row" key={fact.id}>
                         <div className="fact-info">
-                          <strong>
-                            {fact.field_name}
-                          </strong>
-
+                          <strong>{fact.field_name}</strong>
                           <span>
-                            Page{" "}
-                            {fact.source_page || "-"}{" "}
-                            &middot;{" "}
-                            {fact.extraction_method ||
-                              "-"}
+                            Page {fact.source_page || "-"} &middot;{" "}
+                            {fact.extraction_method || "-"}
                           </span>
                         </div>
 
                         <div className="fact-value">
-                          {editingFactId ===
-                          fact.id ? (
+                          {editingFactId === fact.id ? (
                             <input
                               type="text"
                               value={editValue}
                               onChange={(event) =>
-                                setEditValue(
-                                  event.target.value
-                                )
+                                setEditValue(event.target.value)
                               }
                               autoFocus
                             />
                           ) : (
                             <span>
-                              {fact.value}{" "}
-                              {fact.unit || ""}
+                              {fact.value} {fact.unit || ""}
                             </span>
                           )}
                         </div>
@@ -1097,18 +914,11 @@ function Documents() {
 
                         {canEdit && (
                           <div className="fact-actions">
-                            {editingFactId ===
-                            fact.id ? (
+                            {editingFactId === fact.id ? (
                               <button
                                 className="more-button"
                                 onClick={() =>
-                                  updateFact(
-                                    fact.id,
-                                    {
-                                      value:
-                                        editValue,
-                                    }
-                                  )
+                                  updateFact(fact.id, { value: editValue })
                                 }
                                 aria-label="Save edit"
                               >
@@ -1118,12 +928,8 @@ function Documents() {
                               <button
                                 className="more-button"
                                 onClick={() => {
-                                  setEditingFactId(
-                                    fact.id
-                                  );
-                                  setEditValue(
-                                    fact.value || ""
-                                  );
+                                  setEditingFactId(fact.id);
+                                  setEditValue(fact.value || "");
                                 }}
                                 aria-label="Edit value"
                               >
@@ -1134,39 +940,25 @@ function Documents() {
                             <button
                               className="more-button"
                               onClick={() =>
-                                updateFact(
-                                  fact.id,
-                                  {
-                                    validation_status:
-                                      "Approved",
-                                  }
-                                )
+                                updateFact(fact.id, {
+                                  validation_status: "Approved",
+                                })
                               }
                               aria-label="Approve"
                             >
-                              <Check
-                                size={16}
-                                color="#16a34a"
-                              />
+                              <Check size={16} color="#16a34a" />
                             </button>
 
                             <button
                               className="more-button"
                               onClick={() =>
-                                updateFact(
-                                  fact.id,
-                                  {
-                                    validation_status:
-                                      "Rejected",
-                                  }
-                                )
+                                updateFact(fact.id, {
+                                  validation_status: "Rejected",
+                                })
                               }
                               aria-label="Reject"
                             >
-                              <XCircle
-                                size={16}
-                                color="#dc2626"
-                              />
+                              <XCircle size={16} color="#dc2626" />
                             </button>
                           </div>
                         )}
@@ -1176,26 +968,20 @@ function Documents() {
                 )
               ) : modalTab === "preview" ? (
                 <pre className="text-preview">
-                  {pagesText ||
-                    "No extracted text available."}
+                  {pagesText || "No extracted text available."}
                 </pre>
               ) : (
                 <div className="pipeline-timeline">
                   {pipeline.length === 0 ? (
                     <p className="chart-empty">
-                      No pipeline history recorded for
-                      this document.
+                      No pipeline history recorded for this document.
                     </p>
                   ) : (
                     pipeline.map((stage) => {
-                      const stageStatus =
-                        stage.status || "Pending";
+                      const stageStatus = stage.status || "Pending";
 
                       return (
-                        <div
-                          className="pipeline-step"
-                          key={stage.id}
-                        >
+                        <div className="pipeline-step" key={stage.id}>
                           <div
                             className={`pipeline-dot pipeline-dot-${stageStatus
                               .toLowerCase()
@@ -1204,20 +990,13 @@ function Documents() {
                           ></div>
 
                           <div className="pipeline-step-content">
-                            <strong>
-                              {stage.stage}
-                            </strong>
-
-                            <span>
-                              {stageStatus}
-                            </span>
+                            <strong>{stage.stage}</strong>
+                            <span>{stageStatus}</span>
                           </div>
 
                           <small>
                             {stage.created_at
-                              ? new Date(
-                                  stage.created_at
-                                ).toLocaleTimeString(
+                              ? new Date(stage.created_at).toLocaleTimeString(
                                   "en-GB",
                                   {
                                     hour: "2-digit",
@@ -1240,14 +1019,12 @@ function Documents() {
 
       <div className="upload-info">
         <File size={18} />
-
         <div>
           <strong>Supported documents</strong>
-
           <p>
-            PDF, scanned PDF, DOCX, XLSX, CSV and image
-            files. Documents are automatically processed,
-            categorized and made searchable after upload.
+            PDF, scanned PDF, DOCX, XLSX, CSV and image files. Documents are
+            automatically processed, categorized and made searchable after
+            upload.
           </p>
         </div>
       </div>
