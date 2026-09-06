@@ -56,6 +56,7 @@ class Document(Base):
 
     overburden_removal_unit = Column(String(50), nullable=True)
 
+# //changes for delete
     pages = relationship(
         "DocumentPage",
         back_populates="document",
@@ -65,6 +66,16 @@ class Document(Base):
     facts = relationship(
         "ExtractedFact",
         back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+    stages = relationship(
+        "ProcessingStage",
+        cascade="all, delete-orphan",
+    )
+
+    mining_records = relationship(
+        "MiningRecord",
         cascade="all, delete-orphan",
     )
 

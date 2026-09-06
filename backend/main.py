@@ -1138,10 +1138,24 @@ def delete_document(
 
     file_path = UPLOAD_DIR / document.stored_name
     if file_path.exists():
-        file_path.unlink()
+        # file_path.unlink()
+        try:
+            file_path.unlink()
+        except Exception:
+            logger.warning("Could not delete physical file from disk (file may be in use): %s", file_path)
 
     document_name = document.original_name
 
+# changes for delete
+    document_name = document.original_name
+
+    # 1. Clean up all child rows referencing this document to satisfy foreign keys
+    db.query(ProcessingStage).filter(ProcessingStage.document_id == document_id).delete()
+    db.query(MiningRecord).filter(MiningRecord.document_id == document_id).delete()
+    db.query(ExtractedFact).filter(ExtractedFact.document_id == document_id).delete()
+    db.query(DocumentPage).filter(DocumentPage.document_id == document_id).delete()
+
+    # 2. Delete the parent document
     db.delete(document)
     db.commit()
 

@@ -436,59 +436,35 @@ function Documents() {
     }
   };
 
-  const deleteSelected = async () => {
-    if (!canEdit || selectedIds.length === 0) {
-      return;
-    }
+   const deleteSelected = async () => {
+    if (selectedIds.length === 0) return;
 
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.length} selected document(s)? This action cannot be undone.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    let successCount = 0;
-    let failCount = 0;
+    let deletedCount = 0;
+    let failedCount = 0;
 
     for (const id of selectedIds) {
       try {
-        const response = await authFetch(
-          `/api/documents/${id}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        if (!response.ok) {
-          failCount++;
-          continue;
+        const response = await authFetch(`/api/documents/${id}`, { method: "DELETE" });
+        if (response.ok) {
+          deletedCount++;
+        } else {
+          failedCount++;
         }
-
-        successCount++;
       } catch (error) {
         console.error("Delete error:", error);
-        failCount++;
+        failedCount++;
       }
     }
 
-    setSelectedIds([]);
-
-    await fetchDocuments(searchTerm);
-
-    if (failCount > 0) {
-      showNotification(
-        "Delete completed with errors",
-        `${successCount} deleted, ${failCount} failed.`,
-        "error"
-      );
-    } else {
-      showNotification(
-        "Deleted",
-        `${successCount} document(s) removed.`
-      );
+    if (deletedCount > 0) {
+      showNotification("Deleted", `${deletedCount} document(s) removed.`);
     }
+    if (failedCount > 0) {
+      showNotification("Error", `Failed to delete ${failedCount} document(s).`);
+    }
+
+    setSelectedIds([]);
+    fetchDocuments(searchTerm);
   };
 
   const openFactsModal = async (document) => {
