@@ -1,10 +1,12 @@
 import json
 import logging
+import os
 import re
 import shutil
 import uuid
 from pathlib import Path
 from typing import Optional
+
 
 import pandas as pd
 from fastapi import (
@@ -121,11 +123,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5175",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -134,13 +133,16 @@ app.add_middleware(
 # FILE STORAGE
 # ============================================================
 
-UPLOAD_DIR = Path("backend/uploads")
+DATA_DIR = Path(os.environ.get("GEOMINE_DATA_DIR", "/var/data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+UPLOAD_DIR = DATA_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-REPORTS_DIR = Path("backend/reports")
+REPORTS_DIR = DATA_DIR / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-DRAFTS_DIR = Path("backend/drafts")
+DRAFTS_DIR = DATA_DIR / "drafts"
 DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {

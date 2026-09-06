@@ -13,10 +13,7 @@ from pypdf import PdfReader
 # TESSERACT CONFIGURATION
 # ============================================================
 
-TESSERACT_PATH = os.environ.get(
-    "TESSERACT_PATH",
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-)
+TESSERACT_PATH = os.environ.get("TESSERACT_PATH", "tesseract")
 
 if os.path.exists(TESSERACT_PATH):
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
@@ -26,18 +23,9 @@ if os.path.exists(TESSERACT_PATH):
 # POPPLER CONFIGURATION
 # ============================================================
 
-POPPLER_PATH: Optional[str] = os.environ.get(
-    "POPPLER_PATH",
-    os.path.join(
-        os.path.expanduser("~"),
-        "Downloads",
-        "poppler-26.02.0",
-        "Library",
-        "bin",
-    ),
-)
+POPPLER_PATH: Optional[str] = os.environ.get("POPPLER_PATH")
 
-if not os.path.exists(POPPLER_PATH):
+if POPPLER_PATH and not os.path.exists(POPPLER_PATH):
     POPPLER_PATH = None  # let pdf2image fall back to system PATH
 
 
