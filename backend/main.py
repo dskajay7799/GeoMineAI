@@ -857,7 +857,7 @@ def process_document_background(document_id: int, stored_name: str) -> None:
         # "Mine Name:" style text, and now general narrative
         # PDFs/DOCX via AI extraction as a fallback.
         # --------------------------------------------------------
-
+        mining_records_created = 0
         log_stage(db, document_id, "Mining Record Extraction", "In Progress")
 
         extension = Path(document.stored_name).suffix.lower()
@@ -877,6 +877,7 @@ def process_document_background(document_id: int, stored_name: str) -> None:
                         overburden_unit=record["overburden_unit"],
                         category=document.category,
                     ))
+                    mining_records_created += 1
                 if row_records:
                     document.mine_name = row_records[0]["mine_name"]
 
@@ -902,6 +903,7 @@ def process_document_background(document_id: int, stored_name: str) -> None:
                         overburden_unit="Mm3" if record["overburden"] is not None else None,
                         category=document.category,
                     ))
+                    mining_records_created += 1
                 if not document.mine_name:
                     document.mine_name = ai_records[0]["mine_name"]
 
@@ -916,12 +918,16 @@ def process_document_background(document_id: int, stored_name: str) -> None:
                     overburden_unit=document.overburden_removal_unit,
                     category=document.category,
                 ))
+                mining_records_created += 1
 
         log_stage(db, document_id, "Mining Record Extraction", "Completed")
 
-        document.processing_status = (
-            "Needs Review" if result.get("document_type") == "UNSUPPORTED" else "Processed"
-        )
+        if result.get("document_type") == "UNSUPPORTED":
+          document.processing_status = "Needs Review"
+        elif mining_records_created == 0:
+          document.processing_status = "Needs Review"
+        else:
+          document.processing_status = "Processed"
 
         db.commit()
         db.refresh(document)
