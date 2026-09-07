@@ -377,6 +377,25 @@ def _extract_mining_records_from_spreadsheet(dataframe: pd.DataFrame):
     mine_column = _find_column(columns, MINE_NAME_HINTS)
 
     if not mine_column:
+        if production_column:
+            records = []
+            for _, row in dataframe.iterrows():
+                production_val = _safe_float(row.get(production_column))
+                year_val = None
+                if year_column is not None:
+                    raw_year = row.get(year_column)
+                    if raw_year is not None and str(raw_year).strip().lower() != "nan":
+                        year_val = str(raw_year).strip()
+                if production_val is not None:
+                    records.append({
+                        "mine_name": "National Total",
+                        "reporting_year": year_val,
+                        "production": production_val,
+                        "production_unit": production_unit or "MT",
+                        "overburden": None,
+                        "overburden_unit": None,
+                    })
+            return records
         return []
 
     production_column = _find_column(columns, PRODUCTION_HINTS)
@@ -912,19 +931,19 @@ def process_document_background(document_id: int, stored_name: str) -> None:
 
         for fact in facts:
             field_name = fact.get("field_name")
-            value = fact.get("value")
-            unit = fact.get("unit")
+            value = str(fact.get("value") or "").strip() if fact.get("value") is not None else None
+            unit = str(fact.get("unit") or "").strip() if fact.get("unit") is not None else None
 
             if field_name == "mine_name":
-                document.mine_name = value
+                document.mine_name = value[:250] if value else None
             elif field_name == "reporting_year":
-                document.reporting_year = value
+                document.reporting_year = value[:20] if value else None
             elif field_name == "coal_production":
-                document.coal_production = value
-                document.coal_production_unit = unit
+                document.coal_production = value[:50] if value else None
+                document.coal_production_unit = unit[:50] if unit else None
             elif field_name == "overburden_removal":
-                document.overburden_removal = value
-                document.overburden_removal_unit = unit
+                document.overburden_removal = value[:50] if value else None
+                document.overburden_removal_unit = unit[:50] if unit else None
 
         log_stage(db, document_id, "Structured Fact Extraction", "Completed")
 
@@ -1004,13 +1023,12 @@ def process_document_background(document_id: int, stored_name: str) -> None:
                 mining_records_created += 1
 
         log_stage(db, document_id, "Mining Record Extraction", "Completed")
-
         if result.get("document_type") == "UNSUPPORTED":
-          document.processing_status = "Needs Review"
-        elif mining_records_created == 0:
-          document.processing_status = "Needs Review"
+            document.processing_status = "Needs Review"
+        elif not extracted_text.strip() and not facts and not result.get("sheets"):
+            document.processing_status = "Needs Review"
         else:
-          document.processing_status = "Processed"
+            document.processing_status = "Processed"
 
         db.commit()
         db.refresh(document)
@@ -1026,14 +1044,12 @@ def process_document_background(document_id: int, stored_name: str) -> None:
 
     except Exception:
         logger.exception("Document processing error for document_id=%s", document_id)
-        if document:
-            try:
-                document.processing_status = "Needs Review"
+        try:
+            db.rollback()
+            err_doc = db.query(Document).filter(Document.id == document_id).first()
+            if err_doc:
+                err_doc.processing_status = "Needs Review"
                 db.commit()
-                log_stage(db, document_id, "Processing Error", "Failed")
-                notify(db, f"'{document.original_name}' needs review — processing error.", link="/documents")
-            except Exception:
-                db.rollback()
 
     finally:
         db.close()

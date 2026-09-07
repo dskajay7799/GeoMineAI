@@ -46,10 +46,24 @@ def normalize_unit(unit: Optional[str]) -> Optional[str]:
 # ============================================================
 
 MINE_NAME_PATTERNS = [
-    r"mine\s*name\s*[:\-]\s*([^\n,]+)",
-    r"name\s*of\s*mine\s*[:\-]\s*([^\n,]+)",
-    r"mine\s*[:\-]\s*([^\n,]+)",
+    r"mine\s*name\s*[:\-]\s*([^\n,|;\t]+)",
+    r"name\s*of\s*mine\s*[:\-]\s*([^\n,|;\t]+)",
+    r"mine\s*[:\-]\s*([^\n,|;\t]+)",
 ]
+
+def _build_fact(field_name, value, unit, page_number, extraction_method, confidence):
+    cleaned_value = str(value).strip() if value is not None else None
+    if cleaned_value and len(cleaned_value) > 200:
+        cleaned_value = cleaned_value[:200].strip()
+    return {
+        "field_name": field_name,
+        "value": cleaned_value,
+        "unit": unit,
+        "source_page": page_number,
+        "extraction_method": extraction_method,
+        "confidence": confidence,
+        "validation_status": "Pending",
+    }
 
 REPORTING_YEAR_PATTERNS = [
     r"financial\s+year\s*[:\-]?\s*(20\d{2}[-/]\d{2,4})",

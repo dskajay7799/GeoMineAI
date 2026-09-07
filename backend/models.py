@@ -304,7 +304,7 @@ class MiningRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True, index=True)
 
     mine_name = Column(String(255), nullable=False, index=True)
 
