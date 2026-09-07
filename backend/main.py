@@ -376,6 +376,20 @@ def _extract_mining_records_from_spreadsheet(dataframe: pd.DataFrame):
     columns = list(dataframe.columns)
     mine_column = _find_column(columns, MINE_NAME_HINTS)
 
+    production_column = _find_column(columns, PRODUCTION_HINTS)
+    overburden_column = _find_column(columns, OVERBURDEN_HINTS)
+
+    year_column = None
+    for column in columns:
+        if column == mine_column:
+            continue
+        if _is_probably_year_series(dataframe[column], column):
+            year_column = column
+            break
+
+    production_unit = _extract_unit_from_column_name(production_column) if production_column else None
+    overburden_unit = _extract_unit_from_column_name(overburden_column) if overburden_column else None
+
     if not mine_column:
         if production_column:
             records = []
@@ -397,20 +411,6 @@ def _extract_mining_records_from_spreadsheet(dataframe: pd.DataFrame):
                     })
             return records
         return []
-
-    production_column = _find_column(columns, PRODUCTION_HINTS)
-    overburden_column = _find_column(columns, OVERBURDEN_HINTS)
-
-    year_column = None
-    for column in columns:
-        if column == mine_column:
-            continue
-        if _is_probably_year_series(dataframe[column], column):
-            year_column = column
-            break
-
-    production_unit = _extract_unit_from_column_name(production_column) if production_column else None
-    overburden_unit = _extract_unit_from_column_name(overburden_column) if overburden_column else None
 
     records = []
 
@@ -439,7 +439,6 @@ def _extract_mining_records_from_spreadsheet(dataframe: pd.DataFrame):
         })
 
     return records
-
 
 def _detect_conflicts(db: Session):
     rows = (
@@ -1050,6 +1049,10 @@ def process_document_background(document_id: int, stored_name: str) -> None:
             if err_doc:
                 err_doc.processing_status = "Needs Review"
                 db.commit()
+                log_stage(db, document_id, "Processing Error", "Failed")
+                notify(db, f"'{err_doc.original_name}' needs review — processing error.", link="/documents")
+        except Exception:
+            db.rollback()
 
     finally:
         db.close()
